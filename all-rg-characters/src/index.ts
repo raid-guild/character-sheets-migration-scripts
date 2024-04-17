@@ -1,9 +1,19 @@
 import axios from "axios";
 import Jimp from "jimp";
+import { toHex, parseAbi, encodeFunctionData, Address, getAddress } from "viem";
+import Safe, { EthersAdapter } from "@safe-global/protocol-kit";
+import { ethers } from "ethers";
+import { SafeTransactionDataPartial } from "@safe-global/safe-core-sdk-types";
 import { dbPromise } from "./lib/mongodb";
 import {
   CHARACTER_SHEETS_SUBGRAPH_URL,
-  RAIDGUILD_GAME_ADDRESS,
+  OLD_RAIDGUILD_GAME_ADDRESS,
+  NEW_RAIDGUILD_GAME_ADDRESS,
+  BASE_CHARACTER_URI,
+  CHAIN_LABEL,
+  RPC_URL,
+  NPC_SAFE_OWNER_KEY,
+  NPC_SAFE_ADDRESS,
 } from "./utils/constants";
 import { CharacterSubgraph, CharacterMetaDB, Attribute } from "./utils/types";
 import {
@@ -14,10 +24,36 @@ import {
 } from "./utils/helpers";
 import { uploadToPinata } from "./lib/fileStorage";
 
-if (!RAIDGUILD_GAME_ADDRESS || !CHARACTER_SHEETS_SUBGRAPH_URL) {
-  throw new Error(
-    "Missing envs RAIDGUILD_GAME_ADDRESS or CHARACTER_SHEETS_SUBGRAPH_URL"
-  );
+if (!OLD_RAIDGUILD_GAME_ADDRESS) {
+  throw new Error("Missing envs OLD_RAIDGUILD_GAME_ADDRESS");
+}
+
+if (!CHARACTER_SHEETS_SUBGRAPH_URL) {
+  throw new Error("Missing envs CHARACTER_SHEETS_SUBGRAPH_URL");
+}
+
+if (!NEW_RAIDGUILD_GAME_ADDRESS) {
+  throw new Error("Missing envs NEW_RAIDGUILD_GAME_ADDRESS");
+}
+
+if (!BASE_CHARACTER_URI) {
+  throw new Error("Missing envs BASE_CHARACTER_URI");
+}
+
+if (!CHAIN_LABEL) {
+  throw new Error("Missing envs CHAIN_LABEL");
+}
+
+if (!RPC_URL) {
+  throw new Error("Missing envs RPC_URL");
+}
+
+if (!NPC_SAFE_OWNER_KEY) {
+  throw new Error("Missing envs NPC_SAFE_OWNER_KEY");
+}
+
+if (!NPC_SAFE_ADDRESS) {
+  throw new Error("Missing envs NPC_SAFE_ADDRESS");
 }
 
 // # CHARACTER MIGRATION
@@ -30,7 +66,7 @@ const getOldRaidGuildCharacters = async () => {
   try {
     const query = `
       query CharacterAccountQuery {
-        characters(where: { game: "${RAIDGUILD_GAME_ADDRESS}", jailed: false}) {
+        characters(where: { game: "${OLD_RAIDGUILD_GAME_ADDRESS}", jailed: false}) {
           account
           player
           uri
@@ -136,14 +172,14 @@ const uploadBaseCharacterImages = async (
 
   await Promise.all(
     charactersThatNeedImages.map(async (metadata, i) => {
-      const newImage = await uploadBaseCharacterImage(
+      const newImageCid = await uploadBaseCharacterImage(
         metadata.attributes,
         i,
         charactersThatNeedImages.length
       );
       uploadedImages[metadata.characterId] = {
         attributes: getBaseAttributes(metadata.attributes),
-        image: newImage,
+        image: `ipfs://${newImageCid}`,
       };
     })
   );
@@ -153,14 +189,140 @@ const uploadBaseCharacterImages = async (
 
 // 4. Store all metadata in database with new game address
 
-const storeNewRaidGuildCharacterMetadata = async () => {
+const storeNewRaidGuildCharacterMetadata = async (
+  characterMetadatas: CharacterMetaDB[],
+  newAttributesAndImages: {
+    [key: string]: { attributes: Attribute[]; image: string };
+  }
+) => {
   console.log("Storing new RaidGuild character metadata");
+
+  const formattedCharacterMetadatas = characterMetadatas.map((meta) => {
+    const newAttributesAndImage = newAttributesAndImages[meta.characterId];
+
+    const gameAddress = getAddress(NEW_RAIDGUILD_GAME_ADDRESS);
+
+    const extendedCharacterId = `${gameAddress}-character-${toHex(
+      Number(meta.characterId)
+    )}`;
+
+    return {
+      characterId: meta.characterId,
+      gameAddress,
+      account: "",
+      attributes: newAttributesAndImage.attributes,
+      chainId: meta.chainId,
+      name: meta.name,
+      description: meta.description,
+      image: newAttributesAndImage.image,
+      player: meta.player,
+      uri: `${BASE_CHARACTER_URI}${CHAIN_LABEL}/${extendedCharacterId}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Omit<CharacterMetaDB, "_id">;
+  });
+
+  try {
+    const dbClient = await dbPromise;
+
+    const result = await dbClient
+      .collection("characters")
+      .insertMany(formattedCharacterMetadatas);
+
+    if (!result) {
+      throw new Error("Error storing metadata in database");
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error storing metadata in database", error);
+    return null;
+  }
 };
 
 // 5. Batch roll character function calls
 
-const batchRollCharacters = async () => {
-  console.log("Batch rolling characters");
+export const getNpcGnosisSafe = async () => {
+  const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+  const ownerSigner = new ethers.Wallet(NPC_SAFE_OWNER_KEY, provider);
+
+  const ethAdapterOwner = new EthersAdapter({
+    ethers,
+    signerOrProvider: ownerSigner,
+  });
+
+  const safe = await Safe.create({
+    ethAdapter: ethAdapterOwner,
+    safeAddress: NPC_SAFE_ADDRESS,
+  });
+
+  return safe;
+};
+
+const buildRollCharacterTransactionData = async (
+  characterMetadata: CharacterMetaDB
+) => {
+  try {
+    const abi = parseAbi([
+      "function rollCharacterSheet(address player,string calldata _tokenURI) external returns (uint256)",
+    ]);
+
+    const { player } = characterMetadata;
+    const extendedCharacterId = `${getAddress(
+      NEW_RAIDGUILD_GAME_ADDRESS
+    )}-character-${toHex(Number(characterMetadata.characterId))}`;
+
+    const data = encodeFunctionData({
+      abi,
+      functionName: "rollCharacterSheet",
+      args: [player as Address, extendedCharacterId],
+    });
+
+    const rollCharacterSheetTransactionData: SafeTransactionDataPartial = {
+      to: NEW_RAIDGUILD_GAME_ADDRESS,
+      data,
+      value: "0",
+    };
+
+    return rollCharacterSheetTransactionData;
+  } catch (err) {
+    return null;
+  }
+};
+
+export const rollCharacterSheets = async (
+  characterMetadatas: CharacterMetaDB[]
+) => {
+  console.log("Rolling character sheets");
+
+  const safe = await getNpcGnosisSafe();
+
+  try {
+    const safeTransactionData = await Promise.all(
+      characterMetadatas.map(async (metadata) => {
+        const txData = await buildRollCharacterTransactionData(metadata);
+        return txData;
+      })
+    );
+
+    if (safeTransactionData.includes(null)) {
+      throw new Error("Could not build transaction data");
+    }
+
+    const safeTx = await safe.createTransaction({
+      safeTransactionData: safeTransactionData as SafeTransactionDataPartial[],
+    });
+
+    const txRes = await safe.executeTransaction(safeTx);
+    const tx = txRes.transactionResponse;
+
+    if (!tx) throw new Error("Could not submit transaction");
+
+    return tx;
+  } catch (err) {
+    console.error("Error rolling character sheets", err);
+    return null;
+  }
 };
 
 const migrateRaidGuildCharacters = async () => {
@@ -180,13 +342,19 @@ const migrateRaidGuildCharacters = async () => {
     characterMetaDatas
   );
 
-  console.log(newAttributesAndImages);
+  const result = await storeNewRaidGuildCharacterMetadata(
+    characterMetaDatas,
+    newAttributesAndImages
+  );
 
-  await storeNewRaidGuildCharacterMetadata();
+  if (!result) return;
 
-  await batchRollCharacters();
+  const tx = await rollCharacterSheets(characterMetaDatas);
+
+  if (!tx) return;
 
   console.log("Migration complete");
+  console.log("Transaction hash: ", tx.hash);
 };
 
 // CLASS MIGRATION
