@@ -1,28 +1,24 @@
 import axios from "axios";
 import Jimp from "jimp";
 import { toHex, parseAbi, encodeFunctionData, Address, getAddress } from "viem";
-import Safe, { EthersAdapter } from "@safe-global/protocol-kit";
-import { ethers } from "ethers";
 import { SafeTransactionDataPartial } from "@safe-global/safe-core-sdk-types";
-import { dbPromise } from "../lib/mongodb";
+import { dbPromise } from "@/lib/mongodb";
+import { getNpcGnosisSafe } from "@/lib/web3/gnosisSafe";
 import {
   CHARACTER_SHEETS_SUBGRAPH_URL,
   OLD_RAIDGUILD_GAME_ADDRESS,
   NEW_RAIDGUILD_GAME_ADDRESS,
   BASE_CHARACTER_URI,
   CHAIN_LABEL,
-  RPC_URL,
-  NPC_SAFE_OWNER_KEY,
-  NPC_SAFE_ADDRESS,
-} from "../utils/constants";
-import { CharacterSubgraph, CharacterMetaDB, Attribute } from "../utils/types";
+} from "@/utils/constants";
+import { CharacterSubgraph, CharacterMetaDB, Attribute } from "@/utils/types";
 import {
   formatTraitsForUpload,
   getBaseAttributes,
   getTraitsObjectFromAttributes,
   getImageUrl,
-} from "../utils/helpers";
-import { uploadToPinata } from "../lib/fileStorage";
+} from "@/utils/helpers";
+import { uploadToPinata } from "@/lib/fileStorage";
 
 if (!OLD_RAIDGUILD_GAME_ADDRESS) {
   throw new Error("Missing envs OLD_RAIDGUILD_GAME_ADDRESS");
@@ -42,18 +38,6 @@ if (!BASE_CHARACTER_URI) {
 
 if (!CHAIN_LABEL) {
   throw new Error("Missing envs CHAIN_LABEL");
-}
-
-if (!RPC_URL) {
-  throw new Error("Missing envs RPC_URL");
-}
-
-if (!NPC_SAFE_OWNER_KEY) {
-  throw new Error("Missing envs NPC_SAFE_OWNER_KEY");
-}
-
-if (!NPC_SAFE_ADDRESS) {
-  throw new Error("Missing envs NPC_SAFE_ADDRESS");
 }
 
 // # CHARACTER MIGRATION
@@ -242,23 +226,6 @@ const storeNewRaidGuildCharacterMetadata = async (
 
 // 5. Batch roll character function calls
 
-export const getNpcGnosisSafe = async () => {
-  const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
-  const ownerSigner = new ethers.Wallet(NPC_SAFE_OWNER_KEY, provider);
-
-  const ethAdapterOwner = new EthersAdapter({
-    ethers,
-    signerOrProvider: ownerSigner,
-  });
-
-  const safe = await Safe.create({
-    ethAdapter: ethAdapterOwner,
-    safeAddress: NPC_SAFE_ADDRESS,
-  });
-
-  return safe;
-};
-
 const buildRollCharacterTransactionData = async (
   characterMetadata: CharacterMetaDB
 ) => {
@@ -326,7 +293,7 @@ export const rollCharacterSheets = async (
 };
 
 const migrateCharacters = async () => {
-  console.log("Starting migration");
+  console.log("Starting character migration");
 
   const characters = await getOldRaidGuildCharacters();
 
@@ -355,7 +322,7 @@ const migrateCharacters = async () => {
 
   if (!tx) return;
 
-  console.log("Migration complete");
+  console.log("Character migration complete");
   console.log("Transaction hash: ", tx.hash);
 };
 
