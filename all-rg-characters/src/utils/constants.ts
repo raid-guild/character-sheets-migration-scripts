@@ -2,8 +2,10 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-export const CHARACTER_SHEETS_SUBGRAPH_URL =
-  process.env.CHARACTER_SHEETS_SUBGRAPH_URL ?? "";
+export const OLD_CHARACTER_SHEETS_SUBGRAPH_URL =
+  process.env.OLD_CHARACTER_SHEETS_SUBGRAPH_URL ?? "";
+export const NEW_CHARACTER_SHEETS_SUBGRAPH_URL =
+  process.env.NEW_CHARACTER_SHEETS_SUBGRAPH_URL ?? "";
 export const OLD_RAIDGUILD_GAME_ADDRESS =
   process.env.OLD_RAIDGUILD_GAME_ADDRESS ?? "";
 export const NEW_RAIDGUILD_GAME_ADDRESS =

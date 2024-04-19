@@ -2,7 +2,8 @@ import axios from "axios";
 import { parseAbi, encodeFunctionData, Address } from "viem";
 import { SafeTransactionDataPartial } from "@safe-global/safe-core-sdk-types";
 import {
-  CHARACTER_SHEETS_SUBGRAPH_URL,
+  OLD_CHARACTER_SHEETS_SUBGRAPH_URL,
+  NEW_CHARACTER_SHEETS_SUBGRAPH_URL,
   OLD_RAIDGUILD_GAME_ADDRESS,
   NEW_RAIDGUILD_GAME_ADDRESS,
 } from "@/utils/constants";
@@ -12,8 +13,12 @@ if (!OLD_RAIDGUILD_GAME_ADDRESS) {
   throw new Error("Missing envs OLD_RAIDGUILD_GAME_ADDRESS");
 }
 
-if (!CHARACTER_SHEETS_SUBGRAPH_URL) {
-  throw new Error("Missing envs CHARACTER_SHEETS_SUBGRAPH_URL");
+if (!OLD_CHARACTER_SHEETS_SUBGRAPH_URL) {
+  throw new Error("Missing envs OLD_CHARACTER_SHEETS_SUBGRAPH_URL");
+}
+
+if (!NEW_CHARACTER_SHEETS_SUBGRAPH_URL) {
+  throw new Error("Missing envs NEW_CHARACTER_SHEETS_SUBGRAPH_URL");
 }
 
 if (!NEW_RAIDGUILD_GAME_ADDRESS) {
@@ -40,7 +45,7 @@ const getNewCharacterIdsToAccount = async () => {
     `;
 
     const response = await axios({
-      url: CHARACTER_SHEETS_SUBGRAPH_URL,
+      url: NEW_CHARACTER_SHEETS_SUBGRAPH_URL,
       method: "post",
       data: {
         query,
@@ -92,7 +97,7 @@ const getOldCharacterClasses = async (
     `;
 
     const response = await axios({
-      url: CHARACTER_SHEETS_SUBGRAPH_URL,
+      url: OLD_CHARACTER_SHEETS_SUBGRAPH_URL,
       method: "post",
       data: {
         query,
@@ -142,7 +147,7 @@ const getNewClassesAddress = async () => {
     `;
 
     const response = await axios({
-      url: CHARACTER_SHEETS_SUBGRAPH_URL,
+      url: NEW_CHARACTER_SHEETS_SUBGRAPH_URL,
       method: "post",
       data: {
         query,

@@ -18,6 +18,7 @@ export type CharacterMetaDB = Metadata & {
 };
 
 export type CharacterSubgraph = {
+  characterId: string;
   account: string;
   player: string;
   uri: string;
