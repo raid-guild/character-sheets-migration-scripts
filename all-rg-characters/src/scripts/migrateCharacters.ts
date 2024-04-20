@@ -20,26 +20,6 @@ import {
 } from "@/utils/helpers";
 import { uploadToPinata } from "@/lib/fileStorage";
 
-if (!OLD_RAIDGUILD_GAME_ADDRESS) {
-  throw new Error("Missing envs OLD_RAIDGUILD_GAME_ADDRESS");
-}
-
-if (!OLD_CHARACTER_SHEETS_SUBGRAPH_URL) {
-  throw new Error("Missing envs OLD_CHARACTER_SHEETS_SUBGRAPH_URL");
-}
-
-if (!NEW_RAIDGUILD_GAME_ADDRESS) {
-  throw new Error("Missing envs NEW_RAIDGUILD_GAME_ADDRESS");
-}
-
-if (!BASE_CHARACTER_URI) {
-  throw new Error("Missing envs BASE_CHARACTER_URI");
-}
-
-if (!CHAIN_LABEL) {
-  throw new Error("Missing envs CHAIN_LABEL");
-}
-
 // # CHARACTER MIGRATION
 
 // 1. Get all RaidGuild characters from subgraph

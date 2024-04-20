@@ -9,22 +9,6 @@ import {
 } from "@/utils/constants";
 import { getNpcGnosisSafe } from "@/lib/web3/gnosisSafe";
 
-if (!OLD_RAIDGUILD_GAME_ADDRESS) {
-  throw new Error("Missing envs OLD_RAIDGUILD_GAME_ADDRESS");
-}
-
-if (!OLD_CHARACTER_SHEETS_SUBGRAPH_URL) {
-  throw new Error("Missing envs OLD_CHARACTER_SHEETS_SUBGRAPH_URL");
-}
-
-if (!NEW_CHARACTER_SHEETS_SUBGRAPH_URL) {
-  throw new Error("Missing envs NEW_CHARACTER_SHEETS_SUBGRAPH_URL");
-}
-
-if (!NEW_RAIDGUILD_GAME_ADDRESS) {
-  throw new Error("Missing envs NEW_RAIDGUILD_GAME_ADDRESS");
-}
-
 // CLASS MIGRATION
 
 // 1. Get new character accounts by ID

@@ -1,14 +1,6 @@
 import migrateCharacters from "./scripts/migrateCharacters";
 import migrateClasses from "./scripts/migrateClasses";
-
-// # XP MIGRATION
-// 1. Get the XP of all characters
-// 2. Get all XP transactions that came in batches of 50
-// 3. Subtract all 50 XP transactions from each character's general XP
-// 4. Use the 50 XP transactions to give jester class XP to characters
-
-// # ITEM MIGRATION
-// Skip
+import migrateJesterExperience from "./scripts/migrateExperience";
 
 const run = async () => {
   const scriptToRun = process.argv[2];
@@ -20,6 +12,9 @@ const run = async () => {
       break;
     case "migrateClasses":
       await migrateClasses();
+      break;
+    case "migrateJesterExperience":
+      await migrateJesterExperience();
       break;
     default:
       console.error("No script to run");
