@@ -7,3 +7,5 @@ Scripts available to run:
 `yarn start migrateCharacters`
 
 `yarn start migrateClasses`
+
+`yarn start migrateJesterExperience`
